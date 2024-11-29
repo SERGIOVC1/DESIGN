@@ -1,0 +1,303 @@
+---
+const testMode: boolean = false; // Cambia a false en producción
+
+import * as CONTENT from "../pages/content.json";
+import AccordionLayout from "../layouts/AccordionLayout.astro";
+import Card from "./Card.astro";
+
+// Define el tipo para los proyectos y la paginación
+type Technology = {
+  id: number;
+  name: string;
+};
+
+type Project = {
+  id: number;
+  name: string;
+  start_date: string;
+  end_date: string;
+  description: string;
+  technologies: Technology[];
+  repository_url: string;
+  picture: string;
+};
+
+type PaginatedResponse = {
+  content: Project[];
+  totalPages: number;
+  totalElements: number;
+};
+
+let projects: Project[] = [];
+let totalPages: number = 0;
+let currentPage: number = 0;
+let isLoading: boolean = true;
+
+// URL base de la API
+const apiUrl = "http://localhost:8080/api/v1/projects";
+
+// Función para obtener los proyectos desde el servidor
+const fetchProjects = async (page: number = 0, size: number = 5): Promise<void> => {
+  isLoading = true;
+  try {
+    const response = await fetch(`${apiUrl}?page=${page}&size=${size}`);
+    if (!response.ok) throw new Error(`Failed to fetch projects: ${response.status}`);
+    const data: PaginatedResponse = await response.json();
+
+    projects = data.content || [];
+    totalPages = data.totalPages;
+    currentPage = page;
+  } catch (error) {
+    console.error("Error fetching projects:", error);
+    projects = [];
+  } finally {
+    isLoading = false;
+  }
+};
+
+// Función para manejar el borrado de un proyecto
+const handleDelete = async (id: number): Promise<void> => {
+  try {
+    const response = await fetch(`${apiUrl}/${id}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) throw new Error(`Failed to delete project: ${response.status}`);
+    console.log(`Project with ID ${id} deleted successfully.`);
+    projects = projects.filter((project) => project.id !== id); // Actualiza la lista de proyectos
+  } catch (error) {
+    console.error("Error deleting project:", error);
+  }
+};
+
+// Llama a la función para cargar los proyectos en la página inicial
+await fetchProjects();
+---
+
+<ul class="shadow-box" data-current-page={currentPage} data-total-pages={totalPages}>
+  <!-- About Section -->
+  <AccordionLayout title={"About"} icon={"mdi:account-badge-outline"}>
+    {CONTENT.about}
+  </AccordionLayout>
+
+  <!-- Education Section -->
+  <AccordionLayout title={"Education"} icon={"carbon:education"}>
+    {
+      CONTENT.education.map((item) => (
+        <Card
+          title={item.course}
+          timeframe={`${item.from} - ${item.to}`}
+          description={item.location}
+          url={item.source}
+          url_name={item.source_name}
+          
+        />
+      ))
+    }
+  </AccordionLayout>
+
+  <!-- Work Section -->
+  <AccordionLayout title={"Work"} icon={"ic:baseline-work-outline"}>
+    {
+      CONTENT.work.map((item) => (
+        <Card
+          title={item.role}
+          timeframe={`${item.from} - ${item.to}`}
+          description={item.location}
+          tags={item.skills}
+          image={item.image}
+        />
+      ))
+    }
+  </AccordionLayout>
+
+  <!-- Projects Section -->
+  <AccordionLayout title={"Projects"} icon={"ion:md-build"}>
+    {isLoading ? (
+        <p>Loading projects...</p>
+    ) : projects.length > 0 ? (
+        <>
+            {projects.map((item) => (
+                <Card
+                    title={item.name}
+                    timeframe={`${item.start_date} - ${item.end_date}`}
+                    description={item.description}
+                    tags={item.technologies.map((tech) => tech.name).join(", ")}
+                    url={item.repository_url}
+                    url_name={"GitHub"}
+                    image={item.picture} 
+                >
+                    {testMode && (
+                        <button
+                            class="delete-button"
+                            data-id={item.id}
+                            style="background-color: red; color: white; padding: 5px 10px; border: none; cursor: pointer; margin-top: 10px;"
+                        >
+                            Delete
+                        </button>
+                    )}
+                </Card>
+            ))}
+            <div class="pagination">
+                <button
+                    class="prev-button"
+                    data-action="prev"
+                    disabled={currentPage === 0}
+                    style="padding: 5px 10px; margin: 10px;"
+                >
+                    Previous
+                </button>
+                <span>{`Page ${currentPage + 1} of ${totalPages}`}</span>
+                <button
+                    class="next-button"
+                    data-action="next"
+                    disabled={currentPage + 1 === totalPages}
+                    style="padding: 5px 10px; margin: 10px;"
+                >
+                    Next
+                </button>
+            </div>
+        </>
+    ) : (
+        <p>No projects found.</p>
+    )}
+</AccordionLayout>
+
+
+  <!-- Skills Section -->
+  <AccordionLayout title={"Skills"} icon={"mdi:trophy-award"}>
+    {
+      CONTENT.skills.map((item) => (
+        <Card
+          title={item.title}
+          timeframe={item.year}
+          description={item.description}
+          tags=""
+          url="#"
+          url_name=""
+          image={item.image}
+        />
+      ))
+    }
+  </AccordionLayout>
+
+  <!-- References Section -->
+  <AccordionLayout title={"References"} icon={"ic:round-edit-note"}>
+    {
+      CONTENT.references.map((item) => (
+        <Card
+          title={item.title}
+          timeframe={item.date}
+          description={item.description}
+          tags=""
+          url={item.source}
+          url_name={item.source_name}
+        />
+      ))
+    }
+  </AccordionLayout>
+
+  <!-- Contact Section -->
+  <AccordionLayout title={"Contact"} icon={"ri:contacts-book-fill"}>
+    {
+      CONTENT.contact.map((item) => (
+        <Card
+          title={""}
+          timeframe=""
+          description=""
+          tags=""
+          url={item.source}
+          url_name={item.source_name}
+        />
+      ))
+    }
+  </AccordionLayout>
+
+  <!-- Certifications Section -->
+  <AccordionLayout title={"Certifications"} icon={"carbon:certificate"}>
+    {
+      CONTENT.certificates.map((item) => (
+        <Card
+          title={item.title}
+          timeframe={item.issued}
+          description={item.org}
+          tags={item.description}
+          url={item.source}
+          url_name={item.source_name}
+        />
+      ))
+    }
+  </AccordionLayout>
+</ul>
+
+<script>
+  window.addEventListener('load', () => {
+    // Obtén el contenedor de proyectos y verifica que no sea null
+    const container = document.querySelector('.shadow-box');
+    if (!container) {
+      console.error("Container not found.");
+      return;
+    }
+
+    // Obtén los valores iniciales de la paginación desde los atributos del DOM
+    let currentPage = parseInt(container.getAttribute('data-current-page') ?? "0", 10);
+    const totalPages = parseInt(container.getAttribute('data-total-pages') ?? "0", 10);
+
+    // Función para actualizar proyectos
+    const fetchProjects = async (page: number): Promise<void> => {
+      try {
+        const response = await fetch(`http://localhost:8080/api/v1/projects?page=${page}&size=5`);
+        if (!response.ok) throw new Error(`Failed to fetch projects: ${response.status}`);
+        const data = await response.json();
+        container.setAttribute('data-current-page', page.toString());
+        currentPage = page;
+
+        console.log('Fetched projects:', data);
+        // Aquí puedes actualizar dinámicamente la interfaz, si es necesario.
+      } catch (error) {
+        console.error("Error fetching projects:", error);
+      }
+    };
+
+    // Manejar botones de paginación
+    const prevButton = document.querySelector('.prev-button');
+    const nextButton = document.querySelector('.next-button');
+
+    if (prevButton) {
+      prevButton.addEventListener('click', async () => {
+        if (currentPage > 0) {
+          await fetchProjects(currentPage - 1);
+        }
+      });
+    }
+
+    if (nextButton) {
+      nextButton.addEventListener('click', async () => {
+        if (currentPage + 1 < totalPages) {
+          await fetchProjects(currentPage + 1);
+        }
+      });
+    }
+
+    // Manejar botones de eliminar
+    const deleteButtons = document.querySelectorAll('.delete-button');
+    deleteButtons.forEach((button) => {
+      button.addEventListener('click', async () => {
+        const projectId = button.getAttribute('data-id');
+        if (!projectId) {
+          console.error("Project ID not found.");
+          return;
+        }
+        try {
+          const response = await fetch(`http://localhost:8080/api/v1/projects/${projectId}`, {
+            method: 'DELETE',
+          });
+          if (!response.ok) throw new Error(`Failed to delete project: ${response.status}`);
+          console.log(`Project with ID ${projectId} deleted successfully.`);
+          await fetchProjects(currentPage); // Refresca la lista de proyectos
+        } catch (error) {
+          console.error("Error deleting project:", error);
+        }
+      });
+    });
+  });
+</script>
